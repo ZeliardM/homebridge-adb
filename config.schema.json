@@ -3,7 +3,7 @@
   "pluginType": "platform",
   "singular": true,
   "headerDisplay": "A simple homebridge script to control remote ADB enabled Android device",
-  "footerDisplay": "For more information, see the [README](https://github.com/dwaan/homebridge-adb/blob/master/README.md)",
+  "footerDisplay": "For more information, see the [README](https://github.com/dwaan/homebridge-adb/blob/master/README.md) or [FAQ](https://github.com/dwaan/homebridge-adb/blob/master/FAQ.md).",
   "schema": {
     "type": "object",
     "properties": {
@@ -14,7 +14,7 @@
         "required": true
       },
       "accessories": {
-        "title": "Accessories",
+        "title": "Android Devices",
         "type": "array",
         "required": true,
         "items": {
@@ -113,7 +113,7 @@
                     "required": false
                   },
                   "switch": {
-                    "title": "Display as a switch also",
+                    "title": "Also create Switch accessory for this input",
                     "type": "boolean",
                     "required": false
                   }
@@ -310,37 +310,47 @@
             },
             {
               "title": "Inputs",
-              "key": "accessories[].inputs",
-              "type": "array",
-              "description": "<p>Add more inputs to your device. This plugins can only support maximum 50 inputs. After adding more then 50 inputs, you need to remove and readd your device to Home App for the inputs to be displayed properly.</p><p>Check Homebridge logs for current <b>App ID</b>. For <b>Command</b>:</p><ul><li>You can put ADB shell command, eg: \"<code>monkey -p com.termux 1</code>\".</li><li>Or, you can also put a shell script, add \"<code>shell</code>\" identifier on the beginning to let the plugins know it's a shell script, eg: \"<code>shell sh ./myscript.sh</code>\".</li></ul><p>Optionally, you can make the input to display as a switch, so you can ask Siri to turn it on or off. <b>Note:</b> as a switch, turning it off will make the device navigate to home screen.</p>",
+              "expandable": true,
+              "expanded": false,
+              "description": "Add Android app or scripts as inputs in Home app. Optionally display it as a Switch accessory for Siri command or HomeKit automation.",
               "items": [
                 {
-                  "type": "flex",
-                  "displayFlex": false,
-                  "flex-direction": "column",
+                  "description": "<p>This plugins will support up to 50 inputs, after adding more then 50 inputs, this accessory will need to be remove and readd in Home App for the inputs to be displayed properly.</p><p>Check Homebridge logs for current <b>App ID</b>. For <b>Command</b>:</p><ul><li>You can put ADB shell command, eg: \"<code>monkey -p com.termux 1</code>\".</li><li>Or, you can also put a shell script, add \"<code>shell</code>\" identifier on the beginning to let the plugins know it's a shell script, eg: \"<code>shell sh ./myscript.sh</code>\".</li></ul><p><b>Note:</b> As a Switch accessory, turning it off will make the device navigate to home screen.</p>",
+                  "items": []
+                },
+                {
+                  "key": "accessories[].inputs",
+                  "type": "array",
                   "items": [
                     {
                       "type": "flex",
                       "displayFlex": false,
-                      "flex-direction": "row",
+                      "flex-direction": "column",
                       "items": [
                         {
-                          "key": "accessories[].inputs[].name",
-                          "flex": "3 3 70px"
+                          "type": "flex",
+                          "displayFlex": false,
+                          "flex-direction": "row",
+                          "items": [
+                            {
+                              "key": "accessories[].inputs[].name",
+                              "flex": "3 3 70px"
+                            },
+                            {
+                              "key": "accessories[].inputs[].id",
+                              "flex": "5 5 170px"
+                            },
+                            {
+                              "key": "accessories[].inputs[].adb",
+                              "flex": "5 5 170px"
+                            }
+                          ]
                         },
                         {
-                          "key": "accessories[].inputs[].id",
-                          "flex": "5 5 170px"
-                        },
-                        {
-                          "key": "accessories[].inputs[].adb",
-                          "flex": "5 5 170px"
+                          "key": "accessories[].inputs[].switch",
+                          "flex": "1 1 1"
                         }
                       ]
-                    },
-                    {
-                      "key": "accessories[].inputs[].switch",
-                      "flex": "1 1 1"
                     }
                   ]
                 }
@@ -403,15 +413,15 @@
               "title": "Control Center Remote and Power ON/OFF",
               "expandable": true,
               "expanded": false,
-              "description": "<p>Assign custom ADB keycodes for Control Center Remote.</p>",
+              "description": "Assign custom <a href='https://developer.android.com/reference/android/view/KeyEvent' target='blank'>ADB keycodes</a> for Control Center Remote.",
               "items": [
                 {
-                  "description": "<ul><li>You can put one or more keycodes by seperating them with space, eg: \"<code>KEYCODE_VOLUME_UP KEYCODE_VOLUME_DOWN</code>\".</li><li>Or, you can put ADB shell command, eg: \"<code>monkey -p com.termux 1</code>\".</li><li>Or, you can also put a shell script, add \"<code>shell</code>\" identifier on the beginning to let the plugins know it's a shell script, eg: \"<code>shell sh ./myscript.sh</code>\".</li><li>Or, you can also run an app by putting the app id, eg: \"<code>com.google.android.youtube.tv</code>\". Leave them empty to use default values.</li></ul>",
+                  "description": "<ul><li>You can put one or more <a href='https://developer.android.com/reference/android/view/KeyEvent' target='blank'>ADB keycodes</a> by seperating them with space, eg: \"<code>KEYCODE_VOLUME_UP KEYCODE_VOLUME_DOWN</code>\".</li><li>Or, you can put ADB shell command, eg: \"<code>monkey -p com.termux 1</code>\".</li><li>Or, you can also put a shell script, add \"<code>shell</code>\" identifier on the beginning to let the plugins know it's a shell script, eg: \"<code>shell sh ./myscript.sh</code>\".</li><li>Or, you can also run an app by putting the app id, eg: \"<code>com.google.android.youtube.tv</code>\".</li><li>Or, leave them empty to use default values.</li></ul>",
                   "items": []
                 },
                 {
                   "title": "Volume",
-                  "description": "Custom ADB keycodes or shell scripts for control center remote volume control",
+                  "description": "Custom <a href='https://developer.android.com/reference/android/view/KeyEvent' target='blank'>ADB keycodes</a> or app id or shell scripts for control center remote volume control.",
                   "items": [
                     {
                       "type": "flex",
@@ -432,7 +442,7 @@
                 },
                 {
                   "title": "D-Pad",
-                  "description": "Costum ADB keycode or shell script for control remote center control",
+                  "description": "Custom <a href='https://developer.android.com/reference/android/view/KeyEvent' target='blank'>ADB keycodes</a> or app id or shell script for control remote center control.",
                   "items": [
                     {
                       "type": "flex",
@@ -510,7 +520,7 @@
                 },
                 {
                   "title": "Power",
-                  "description": "Costum ADB keycode or shell script for power",
+                  "description": "Costum <a href='https://developer.android.com/reference/android/view/KeyEvent' target='blank'>ADB keycodes</a> or app id or shell script for power.",
                   "items": [
                     {
                       "type": "flex",
