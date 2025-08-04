@@ -1,941 +1,616 @@
 {
-	"pluginAlias": "HomebridgeADB",
-	"pluginType": "platform",
-	"singular": true,
-	"headerDisplay": "A simple homebridge script to control remote ADB enabled Android device",
-	"footerDisplay": "For more information, see the [README](https://github.com/dwaan/homebridge-adb/blob/master/README.md)",
-	"schema": {
-		"type": "object",
-		"properties": {
-			"name": {
-			  "title": "Plugin Name",
-			  "type": "string",
-			  "default": "Homebridge ADB",
-			  "required": true
-			},
-			"accessories": {
-				"title": "Accessories",
-				"type": "array",
-				"required": true,
-				"items": {
-					"type": "object",
-					"properties": {
-						"name": {
-							"type": "string",
-							"title": "Device Name",
-							"placeholder": "Eg: Your Device Name",
-							"minLength": 1,
-							"required": true
-						},
-						"ip": {
-							"type": "string",
-							"title": "IP Address",
-							"placeholder": "Eg: 192.168.1.1",
-							"format": "ipv4",
-							"required": true
-						},
-						"path": {
-							"type": "string",
-							"title": "ADB Path",
-							"placeholder": "Eg: /usr/bin/adb or c:\\adb-tools\\adb.exe"
-						},
-						"mac": {
-							"type": "string",
-							"title": "MAC address",
-							"placeholder": "Eg: 4d:23:ca:5e:78:3e",
-							"format": "mac",
-							"required": false
-						},
-						"timeout": {
-							"type": "number",
-							"title": "ADB Timeout",
-							"oneOf": [
-								{
-									"title": "1000",
-									"enum": [
-										"1000"
-									]
-								},
-								{
-									"title": "1500",
-									"enum": [
-										"1500"
-									]
-								},
-								{
-									"title": "2000",
-									"enum": [
-										"2000"
-									]
-								},
-								{
-									"title": "2500",
-									"enum": [
-										"2500"
-									]
-								},
-								{
-									"title": "3000",
-									"enum": [
-										"3000"
-									]
-								},
-								{
-									"title": "3500",
-									"enum": [
-										"3500"
-									]
-								},
-								{
-									"title": "4000",
-									"enum": [
-										"4000"
-									]
-								},
-								{
-									"title": "4500",
-									"enum": [
-										"4500"
-									]
-								},
-								{
-									"title": "5000",
-									"enum": [
-										"5000"
-									]
-								}
-							]
-						},
-						"interval": {
-							"type": "number",
-							"title": "Polling interval",
-							"oneOf": [
-								{
-									"title": "500",
-									"enum": [
-										"500"
-									]
-								},
-								{
-									"title": "1000",
-									"enum": [
-										"1000"
-									]
-								},
-								{
-									"title": "2500",
-									"enum": [
-										"2500"
-									]
-								},
-								{
-									"title": "5000",
-									"enum": [
-										"5000"
-									]
-								},
-								{
-									"title": "7500",
-									"enum": [
-										"7500"
-									]
-								},
-								{
-									"title": "10000",
-									"enum": [
-										"10000"
-									]
-								}
-							]
-						},
-						"category": {
-							"type": "string",
-							"title": "Category",
-							"oneOf": [
-								{
-									"title": "Apple TV",
-									"enum": [
-										"APPLE_TV"
-									]
-								},
-								{
-									"title": "Television",
-									"enum": [
-										"TELEVISION"
-									]
-								},
-								{
-									"title": "Streaming Stick",
-									"enum": [
-										"TV_STREAMING_STICK"
-									]
-								},
-								{
-									"title": "Set Top Box",
-									"enum": [
-										"TV_SET_TOP_BOX"
-									]
-								},
-								{
-									"title": "Audio Reciever",
-									"enum": [
-										"AUDIO_RECEIVER"
-									]
-								},
-								{
-									"title": "Speaker",
-									"enum": [
-										"SPEAKER"
-									]
-								}
-							]
-						},
-						"inputs": {
-							"title": "Inputs",
-							"type": "array",
-							"items": {
-								"type": "object",
-								"properties": {
-									"name": {
-										"title": "Name",
-										"type": "string",
-										"placeholder": "eg: App name",
-										"required": true
-									},
-									"id": {
-										"title": "App ID",
-										"type": "string",
-										"placeholder": "eg: com.your.app.id",
-										"required": true
-									},
-									"adb": {
-										"title": "or, Command",
-										"type": "string",
-										"placeholder": "eg: monkey -p home 1",
-										"required": false
-									},
-									"switch": {
-										"title": "Display as a switch also",
-										"type": "boolean",
-										"required": false
-									}
-								}
-							}
-						},
-						"hidenumber": {
-							"type": "boolean",
-							"title": "Hide 'Inputs' number in Home App",
-							"oneOf": [
-								{
-									"title": "Yes",
-									"enum": [
-										"true"
-									]
-								},
-								{
-									"title": "No",
-									"enum": [
-										"false"
-									]
-								}
-							]
-						},
-						"hidehome": {
-							"type": "boolean",
-							"title": "Hide 'Home' Input in Home App",
-							"oneOf": [
-								{
-									"title": "Yes",
-									"enum": [
-										"true"
-									]
-								},
-								{
-									"title": "No",
-									"enum": [
-										"false"
-									]
-								}
-							]
-						},
-						"hideother": {
-							"type": "boolean",
-							"title": "Hide 'Other' Input in Home App",
-							"oneOf": [
-								{
-									"title": "Yes",
-									"enum": [
-										"true"
-									]
-								},
-								{
-									"title": "No",
-									"enum": [
-										"false"
-									]
-								}
-							]
-						},
-						"playbacksensor": {
-							"type": "boolean",
-							"title": "Playback as Motion Sensor",
-							"oneOf": [
-								{
-									"title": "Yes",
-									"enum": [
-										"true"
-									]
-								},
-								{
-									"title": "No",
-									"enum": [
-										"false"
-									]
-								}
-							]
-						},
-						"playbacksensordelay": {
-							"type": "number",
-							"title": "Sensor off delay (ms)",
-							"oneOf": [
-								{
-									"title": "500",
-									"enum": [
-										"500"
-									]
-								},
-								{
-									"title": "1000",
-									"enum": [
-										"1000"
-									]
-								},
-								{
-									"title": "2500",
-									"enum": [
-										"2500"
-									]
-								},
-								{
-									"title": "5000",
-									"enum": [
-										"5000"
-									]
-								},
-								{
-									"title": "7500",
-									"enum": [
-										"7500"
-									]
-								},
-								{
-									"title": "10000",
-									"enum": [
-										"10000"
-									]
-								},
-								{
-									"title": "12500",
-									"enum": [
-										"12500"
-									]
-								},
-								{
-									"title": "15000",
-									"enum": [
-										"15000"
-									]
-								},
-								{
-									"title": "17500",
-									"enum": [
-										"17500"
-									]
-								},
-								{
-									"title": "20000",
-									"enum": [
-										"20000"
-									]
-								},
-								{
-									"title": "30000",
-									"enum": [
-										"30000"
-									]
-								},
-								{
-									"title": "40000",
-									"enum": [
-										"40000"
-									]
-								},
-								{
-									"title": "50000",
-									"enum": [
-										"50000"
-									]
-								}
-							]
-						},
-						"playbacksensorexclude": {
-							"type": "string",
-							"title": "Exclude this app from Playback Sensor",
-							"placeholder": "eg: com.your.app.id"
-						},
-						"debug": {
-							"type": "boolean",
-							"title": "Display more debug message",
-							"oneOf": [
-								{
-									"title": "Yes",
-									"enum": [
-										"true"
-									]
-								},
-								{
-									"title": "No",
-									"enum": [
-										"false"
-									]
-								}
-							]
-						},
-						"skipSpeaker": {
-							"type": "boolean",
-							"title": "Skip speaker/volume creation",
-							"oneOf": [
-								{
-									"title": "Yes",
-									"enum": [
-										"true"
-									]
-								},
-								{
-									"title": "No",
-									"enum": [
-										"false"
-									]
-								}
-							]
-						},
-						"upbutton": {
-							"type": "string",
-							"title": "Up",
-							"placeholder": "eg: KEYCODE_DPAD_UP",
-							"minLength": 9
-						},
-						"downbutton": {
-							"type": "string",
-							"title": "Down",
-							"placeholder": "eg: KEYCODE_DPAD_DOWN",
-							"minLength": 9
-						},
-						"leftbutton": {
-							"type": "string",
-							"title": "Left",
-							"placeholder": "eg: KEYCODE_DPAD_LEFT",
-							"minLength": 9
-						},
-						"rightbutton": {
-							"type": "string",
-							"title": "Right",
-							"placeholder": "eg: KEYCODE_DPAD_RIGHT",
-							"minLength": 9
-						},
-						"selectbutton": {
-							"type": "string",
-							"title": "Select",
-							"placeholder": "eg: KEYCODE_ENTER",
-							"minLength": 9
-						},
-						"backbutton": {
-							"type": "string",
-							"title": "Back",
-							"placeholder": "eg: KEYCODE_BACK",
-							"minLength": 9
-						},
-						"playpausebutton": {
-							"type": "string",
-							"title": "Play/Pause",
-							"placeholder": "eg: KEYCODE_MEDIA_PLAY_PAUSE",
-							"minLength": 9
-						},
-						"infobutton": {
-							"type": "string",
-							"title": "Info",
-							"placeholder": "eg: KEYCODE_HOME",
-							"minLength": 9
-						},
-						"poweron": {
-							"type": "string",
-							"title": "Power On",
-							"placeholder": "eg: KEYCODE_POWER"
-						},
-						"poweronretry": {
-							"type": "number",
-							"title": "Power On Retry",
-							"oneOf": [
-								{
-									"title": "1",
-									"enum": [
-										"1"
-									]
-								},
-								{
-									"title": "2",
-									"enum": [
-										"2"
-									]
-								},
-								{
-									"title": "3",
-									"enum": [
-										"3"
-									]
-								},
-								{
-									"title": "4",
-									"enum": [
-										"4"
-									]
-								},
-								{
-									"title": "5",
-									"enum": [
-										"5"
-									]
-								},
-								{
-									"title": "6",
-									"enum": [
-										"6"
-									]
-								},
-								{
-									"title": "7",
-									"enum": [
-										"7"
-									]
-								},
-								{
-									"title": "8",
-									"enum": [
-										"8"
-									]
-								},
-								{
-									"title": "9",
-									"enum": [
-										"9"
-									]
-								},
-								{
-									"title": "10",
-									"enum": [
-										"10"
-									]
-								}
-							]
-						},
-						"poweroff": {
-							"type": "string",
-							"title": "Power Off",
-							"placeholder": "eg: KEYCODE_POWER"
-						},
-						"volumeup": {
-							"type": "string",
-							"title": "Volume Up",
-							"placeholder": "eg: KEYCODE_VOLUME_UP"
-						},
-						"volumedown": {
-							"type": "string",
-							"title": "Volume Down",
-							"placeholder": "eg: KEYCODE_VOLUME_DOWN"
-						},
-						"stateAdbCommand": {
-							"type": "string",
-							"title": "State Command",
-							"placeholder": "eg: dumpsys power | grep mHoldingDisplaySuspendBlocker="
-						},
-						"stateAdbOutputAwake": {
-							"type": "string",
-							"title": "State Command Output",
-							"placeholder": "eg: true (case sensitive)"
-						},
-						"launcherid": {
-							"type": "string",
-							"title": "Default Launcher App Id",
-							"placeholder": "eg: com.spocky.projengmenu"
-						}
-					}
-				}
-			}
-		}
-	},
-	"layout": [
-		{
-			"key": "accessories",
-			"type": "array",
-			"items": [
-				{
-					"type": "flex",
-					"items": [
-						{
-							"type": "flex",
-							"displayFlex": true,
-							"flex-direction": "row",
-							"items": [
-								{
-									"key": "accessories[].name"
-								}
-							]
-						},
-						{
-							"type": "flex",
-							"displayFlex": true,
-							"flex-direction": "row",
-							"items": [
-								{
-									"key": "accessories[].ip",
-									"flex": "2 2 200px"
-								},
-								{
-									"key": "accessories[].category",
-									"flex": "1 1 100px"
-								}
-							]
-						},
-						{
-							"type": "flex",
-							"displayFlex": true,
-							"flex-direction": "row",
-							"items": [
-								{
-									"key": "accessories[].path"
-								}
-							]
-						},
-						{
-							"type": "flex",
-							"displayFlex": true,
-							"flex-direction": "row",
-							"items": [
-								{
-									"key": "accessories[].timeout",
-									"flex": "1 1 100px"
-								},
-								{
-									"key": "accessories[].interval",
-									"flex": "1 1 100px"
-								}
-							]
-						},
-						{
-							"title": "Inputs",
-							"key": "accessories[].inputs",
-							"type": "array",
-							"description": "Add more inputs to your device. This plugins only support max 50 inputs, after adding more then 50 inputs, you need to remove and readd your device to Home App for the inputs to be displayed properly. Check Homebridge logs for current App ID. For command, you can put ADB shell command, eg: \"monkey -p com.termux 1\". Or, you can also put a shell script. Put \"shell\" identifier to let the plugins know it's a shell script, eg: \"shell sh ./myscript.sh\". Optionally, you can make the input to display as a switch, so you can ask Siri to turn it on or off. As a switch, turning it off will make the device navigate to home screen.",
-							"items": [
-								{
-									"type": "flex",
-									"displayFlex": false,
-									"flex-direction": "column",
-									"items": [
-										{
-											"type": "flex",
-											"displayFlex": false,
-											"flex-direction": "row",
-											"items": [
-												{
-													"key": "accessories[].inputs[].name",
-													"flex": "3 3 70px"
-												},
-												{
-													"key": "accessories[].inputs[].id",
-													"flex": "5 5 170px"
-												},
-												{
-													"key": "accessories[].inputs[].adb",
-													"flex": "5 5 170px"
-												}
-											]
-										},
-										{
-											"key": "accessories[].inputs[].switch",
-											"flex": "1 1 1"
-										}
-									]
-								}
-							]
-						},
-						{
-							"title": "Wake On LAN",
-							"expandable": true,
-							"expanded": false,
-							"description": "Plugin will try to use Wake On LAN when you provide your device MAC address, if your device supported it. Useful when your device disconnected from Network after it turned off.",
-							"items": [
-								{
-									"type": "flex",
-									"displayFlex": true,
-									"flex-direction": "row",
-									"items": [
-										{
-											"key": "accessories[].mac",
-											"flex": "1 1 100px"
-										}
-									]
-								}
-							]
-						},
-						{
-							"title": "Playback Sensor",
-							"expandable": true,
-							"expanded": false,
-							"description": "Create motion sensor based on media playback activities (limited device support). You can provide one or more app ids to exclude it from playback sensor, use space between the app ids to seperate them.",
-							"items": [
-								{
-									"type": "flex",
-									"displayFlex": true,
-									"flex-direction": "row",
-									"items": [
-										{
-											"key": "accessories[].playbacksensor",
-											"flex": "1 1 100px"
-										}
-									]
-								},
-								{
-									"type": "flex",
-									"displayFlex": true,
-									"flex-direction": "row",
-									"items": [
-										{
-											"key": "accessories[].playbacksensorexclude",
-											"flex": "2 2 200px"
-										},
-										{
-											"key": "accessories[].playbacksensordelay",
-											"flex": "1 1 100px"
-										}
-									]
-								}
-							]
-						},
-						{
-							"title": "Control Center Remote and Power ON/OFF",
-							"expandable": true,
-							"expanded": false,
-							"description": "Assign custom ADB keycodes for Control Center Remote. You can put one or more keycodes by seperating them with space, eg: \"KEYCODE_VOLUME_UP KEYCODE_VOLUME_DOWN\". You can put ADB shell command, eg: \"monkey -p com.termux 1\". You can also put a shell script. Put \"shell\" identifier to let the plugins know it's a shell script, eg: \"shell sh ./myscript.sh\". Or, you can also run an app by putting the app id, eg: \"com.google.android.youtube.tv\". Leave them empty to use default values.",
-							"items": [
-								{
-									"title": "Volume",
-									"description": "Custom ADB keycodes or shell scripts for control center remote volume control",
-									"expandable": false,
-									"expanded": true,
-									"items": [
-										{
-											"type": "flex",
-											"displayFlex": true,
-											"flex-direction": "row",
-											"items": [
-												{
-													"key": "accessories[].volumeup",
-													"flex": "1 1 100px"
-												},
-												{
-													"key": "accessories[].volumedown",
-													"flex": "1 1 100px"
-												}
-											]
-										}
-									]
-								},
-								{
-									"title": "D-Pad",
-									"description": "Costum ADB keycode or shell script for control remote center control",
-									"expandable": false,
-									"expanded": true,
-									"items": [
-										{
-											"type": "flex",
-											"displayFlex": true,
-											"flex-direction": "row",
-											"items": [
-												{
-													"flex": "1 1 100px"
-												},
-												{
-													"key": "accessories[].upbutton",
-													"flex": "1 1 100px"
-												},
-												{
-													"flex": "1 1 100px"
-												}
-											]
-										},
-										{
-											"type": "flex",
-											"displayFlex": true,
-											"flex-direction": "row",
-											"items": [
-												{
-													"key": "accessories[].leftbutton",
-													"flex": "1 1 100px"
-												},
-												{
-													"key": "accessories[].selectbutton",
-													"flex": "1 1 100px"
-												},
-												{
-													"key": "accessories[].rightbutton",
-													"flex": "1 1 100px"
-												}
-											]
-										},
-										{
-											"type": "flex",
-											"displayFlex": true,
-											"flex-direction": "row",
-											"items": [
-												{
-													"flex": "1 1 100px"
-												},
-												{
-													"key": "accessories[].downbutton",
-													"flex": "1 1 100px"
-												},
-												{
-													"flex": "1 1 100px"
-												}
-											]
-										},
-										{
-											"type": "flex",
-											"displayFlex": true,
-											"flex-direction": "row",
-											"items": [
-												{
-													"key": "accessories[].playpausebutton",
-													"flex": "1 1 100px"
-												},
-												{
-													"key": "accessories[].backbutton",
-													"flex": "1 1 100px"
-												},
-												{
-													"key": "accessories[].infobutton",
-													"flex": "1 1 100px"
-												}
-											]
-										}
-									]
-								},
-								{
-									"title": "Power",
-									"description": "Costum ADB keycode or shell script for power",
-									"expandable": false,
-									"expanded": true,
-									"items": [
-										{
-											"type": "flex",
-											"displayFlex": true,
-											"flex-direction": "row",
-											"items": [
-												{
-													"key": "accessories[].poweron",
-													"flex": "1 1 100px"
-												},
-												{
-													"key": "accessories[].poweroff",
-													"flex": "1 1 100px"
-												},
-												{
-													"key": "accessories[].poweronretry",
-													"flex": "1 1 100px"
-												}
-											]
-										}
-									]
-								}
-							]
-						},
-						{
-							"title": "Settings",
-							"expandable": true,
-							"expanded": false,
-							"description": "Other additional settings.",
-							"items": [
-								{
-									"type": "flex",
-									"displayFlex": true,
-									"flex-direction": "row",
-									"items": [
-										{
-											"key": "accessories[].debug",
-											"flex": "1 1 100px"
-										},
-										{
-											"key": "accessories[].skipSpeaker",
-											"flex": "1 1 100px"
-										}
-									]
-								},
-								{
-									"type": "flex",
-									"displayFlex": true,
-									"flex-direction": "row",
-									"items": [
-										{
-											"key": "accessories[].hidenumber",
-											"flex": "1 1 100px"
-										},
-										{
-											"key": "accessories[].hidehome",
-											"flex": "1 1 100px"
-										}
-									]
-								},
-								{
-									"type": "flex",
-									"displayFlex": true,
-									"flex-direction": "row",
-									"items": [
-										{
-											"key": "accessories[].hideother",
-											"flex": "1 1 100px"
-										}
-									]
-								}
-							]
-						},
-						{
-							"title": "Advance Settings",
-							"expandable": true,
-							"expanded": false,
-							"description": "More advance settings. Leave it blank if you don't know what is this.",
-							"items": [
-								{
-									"type": "flex",
-									"displayFlex": true,
-									"flex-direction": "column",
-									"items": [
-										{
-											"key": "accessories[].stateAdbCommand"
-										},
-										{
-											"key": "accessories[].stateAdbOutputAwake"
-										},
-										{
-											"key": "accessories[].launcherid"
-										}
-									]
-								}
-							]
-						}
-					]
-				}
-			]
-		}
-	]
+  "pluginAlias": "HomebridgeADB",
+  "pluginType": "platform",
+  "singular": true,
+  "headerDisplay": "A simple homebridge script to control remote ADB enabled Android device",
+  "footerDisplay": "For more information, see the [README](https://github.com/dwaan/homebridge-adb/blob/master/README.md)",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Plugin Name",
+        "type": "string",
+        "default": "Homebridge ADB",
+        "required": true
+      },
+      "accessories": {
+        "title": "Accessories",
+        "type": "array",
+        "required": true,
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "title": "Device Name",
+              "placeholder": "Eg: Your Device Name",
+              "minLength": 1,
+              "required": true
+            },
+            "ip": {
+              "type": "string",
+              "title": "IP Address",
+              "placeholder": "Eg: 192.168.1.1",
+              "format": "ipv4",
+              "required": true
+            },
+            "path": {
+              "type": "string",
+              "title": "ADB Path",
+              "placeholder": "Eg: /usr/bin/adb or c:\\adb-tools\\adb.exe"
+            },
+            "mac": {
+              "type": "string",
+              "title": "MAC address",
+              "placeholder": "Eg: 4d:23:ca:5e:78:3e",
+              "format": "mac",
+              "required": false
+            },
+            "timeout": {
+              "type": "number",
+              "title": "ADB Timeout",
+              "minimum": 1000,
+              "maximum": 5000
+            },
+            "interval": {
+              "type": "number",
+              "title": "Polling interval",
+              "minimum": 500,
+              "maximum": 10000
+            },
+            "category": {
+              "type": "string",
+              "title": "Category",
+              "oneOf": [
+                {
+                  "title": "Apple TV",
+                  "enum": ["APPLE_TV"]
+                },
+                {
+                  "title": "Television",
+                  "enum": ["TELEVISION"]
+                },
+                {
+                  "title": "Streaming Stick",
+                  "enum": ["TV_STREAMING_STICK"]
+                },
+                {
+                  "title": "Set Top Box",
+                  "enum": ["TV_SET_TOP_BOX"]
+                },
+                {
+                  "title": "Audio Reciever",
+                  "enum": ["AUDIO_RECEIVER"]
+                },
+                {
+                  "title": "Speaker",
+                  "enum": ["SPEAKER"]
+                }
+              ]
+            },
+            "inputs": {
+              "title": "Inputs",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "placeholder": "eg: App name",
+                    "required": true
+                  },
+                  "id": {
+                    "title": "App ID",
+                    "type": "string",
+                    "placeholder": "eg: com.your.app.id",
+                    "required": true
+                  },
+                  "adb": {
+                    "title": "or, Command",
+                    "type": "string",
+                    "placeholder": "eg: monkey -p home 1",
+                    "required": false
+                  },
+                  "switch": {
+                    "title": "Display as a switch also",
+                    "type": "boolean",
+                    "required": false
+                  }
+                }
+              }
+            },
+            "hidenumber": {
+              "type": "boolean",
+              "title": "Hide 'Inputs' number in Home App"
+            },
+            "hidehome": {
+              "type": "boolean",
+              "title": "Hide 'Home' Input in Home App"
+            },
+            "hideother": {
+              "type": "boolean",
+              "title": "Hide 'Other' Input in Home App"
+            },
+            "playbacksensor": {
+              "type": "boolean",
+              "title": "Playback as Motion Sensor"
+            },
+            "playbacksensorexclude": {
+              "type": "string",
+              "title": "Exclude this app from Playback Sensor",
+              "placeholder": "eg: com.your.app.id",
+              "description": "You can provide one or more app ids to exclude it from playback sensor, use space between the app ids to seperate them."
+            },
+            "playbacksensordelay": {
+              "type": "number",
+              "title": "Sensor off delay (ms)",
+              "minimum": 500,
+              "maximum": 50000
+            },
+            "debug": {
+              "type": "boolean",
+              "title": "Display more debug message"
+            },
+            "skipSpeaker": {
+              "type": "boolean",
+              "title": "Skip speaker/volume creation"
+            },
+            "upbutton": {
+              "type": "string",
+              "title": "Up",
+              "placeholder": "eg: KEYCODE_DPAD_UP",
+              "minLength": 9
+            },
+            "downbutton": {
+              "type": "string",
+              "title": "Down",
+              "placeholder": "eg: KEYCODE_DPAD_DOWN",
+              "minLength": 9
+            },
+            "leftbutton": {
+              "type": "string",
+              "title": "Left",
+              "placeholder": "eg: KEYCODE_DPAD_LEFT",
+              "minLength": 9
+            },
+            "rightbutton": {
+              "type": "string",
+              "title": "Right",
+              "placeholder": "eg: KEYCODE_DPAD_RIGHT",
+              "minLength": 9
+            },
+            "selectbutton": {
+              "type": "string",
+              "title": "Select",
+              "placeholder": "eg: KEYCODE_ENTER",
+              "minLength": 9
+            },
+            "backbutton": {
+              "type": "string",
+              "title": "Back",
+              "placeholder": "eg: KEYCODE_BACK",
+              "minLength": 9
+            },
+            "playpausebutton": {
+              "type": "string",
+              "title": "Play/Pause",
+              "placeholder": "eg: KEYCODE_MEDIA_PLAY_PAUSE",
+              "minLength": 9
+            },
+            "infobutton": {
+              "type": "string",
+              "title": "Info",
+              "placeholder": "eg: KEYCODE_HOME",
+              "minLength": 9
+            },
+            "poweron": {
+              "type": "string",
+              "title": "Power On",
+              "placeholder": "eg: KEYCODE_POWER"
+            },
+            "poweronretry": {
+              "type": "number",
+              "title": "Power On Retry",
+              "minimum": 1,
+              "maximum": 10
+            },
+            "poweroff": {
+              "type": "string",
+              "title": "Power Off",
+              "placeholder": "eg: KEYCODE_POWER"
+            },
+            "volumeup": {
+              "type": "string",
+              "title": "Volume Up",
+              "placeholder": "eg: KEYCODE_VOLUME_UP"
+            },
+            "volumedown": {
+              "type": "string",
+              "title": "Volume Down",
+              "placeholder": "eg: KEYCODE_VOLUME_DOWN"
+            },
+            "stateAdbCommand": {
+              "type": "string",
+              "title": "State Command",
+              "placeholder": "eg: dumpsys power | grep mHoldingDisplaySuspendBlocker="
+            },
+            "stateAdbOutputAwake": {
+              "type": "string",
+              "title": "State Command Output",
+              "placeholder": "eg: true (case sensitive)"
+            },
+            "launcherid": {
+              "type": "string",
+              "title": "Default Launcher App Id",
+              "placeholder": "eg: com.spocky.projengmenu"
+            }
+          }
+        }
+      }
+    }
+  },
+  "layout": [
+    {
+      "key": "accessories",
+      "type": "array",
+      "items": [
+        {
+          "type": "flex",
+          "items": [
+            {
+              "type": "flex",
+              "displayFlex": true,
+              "flex-direction": "row",
+              "items": [
+                {
+                  "key": "accessories[].name"
+                }
+              ]
+            },
+            {
+              "type": "flex",
+              "displayFlex": true,
+              "flex-direction": "row",
+              "items": [
+                {
+                  "key": "accessories[].ip",
+                  "flex": "2 2 200px"
+                },
+                {
+                  "key": "accessories[].category",
+                  "flex": "1 1 100px"
+                }
+              ]
+            },
+            {
+              "type": "flex",
+              "displayFlex": true,
+              "flex-direction": "row",
+              "items": [
+                {
+                  "key": "accessories[].path"
+                }
+              ]
+            },
+            {
+              "type": "flex",
+              "displayFlex": true,
+              "flex-direction": "row",
+              "items": [
+                {
+                  "key": "accessories[].timeout",
+                  "flex": "1 1 100px"
+                },
+                {
+                  "key": "accessories[].interval",
+                  "flex": "1 1 100px"
+                }
+              ]
+            },
+            {
+              "title": "Inputs",
+              "key": "accessories[].inputs",
+              "type": "array",
+              "description": "<p>Add more inputs to your device. This plugins can only support maximum 50 inputs. After adding more then 50 inputs, you need to remove and readd your device to Home App for the inputs to be displayed properly.</p><p>Check Homebridge logs for current <b>App ID</b>. For <b>Command</b>:</p><ul><li>You can put ADB shell command, eg: \"<code>monkey -p com.termux 1</code>\".</li><li>Or, you can also put a shell script, add \"<code>shell</code>\" identifier on the beginning to let the plugins know it's a shell script, eg: \"<code>shell sh ./myscript.sh</code>\".</li></ul><p>Optionally, you can make the input to display as a switch, so you can ask Siri to turn it on or off. <b>Note:</b> as a switch, turning it off will make the device navigate to home screen.</p>",
+              "items": [
+                {
+                  "type": "flex",
+                  "displayFlex": false,
+                  "flex-direction": "column",
+                  "items": [
+                    {
+                      "type": "flex",
+                      "displayFlex": false,
+                      "flex-direction": "row",
+                      "items": [
+                        {
+                          "key": "accessories[].inputs[].name",
+                          "flex": "3 3 70px"
+                        },
+                        {
+                          "key": "accessories[].inputs[].id",
+                          "flex": "5 5 170px"
+                        },
+                        {
+                          "key": "accessories[].inputs[].adb",
+                          "flex": "5 5 170px"
+                        }
+                      ]
+                    },
+                    {
+                      "key": "accessories[].inputs[].switch",
+                      "flex": "1 1 1"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "title": "Wake On LAN",
+              "expandable": true,
+              "expanded": false,
+              "description": "Plugin will try to use Wake On LAN when you provide your device MAC address, if your device supported it. Useful when your device disconnected from Network after it turned off.",
+              "items": [
+                {
+                  "type": "flex",
+                  "displayFlex": true,
+                  "flex-direction": "row",
+                  "items": [
+                    {
+                      "key": "accessories[].mac",
+                      "flex": "1 1 100px"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "title": "Playback Sensor",
+              "expandable": true,
+              "expanded": false,
+              "description": "Create motion sensor based on media playback activities (limited device support).",
+              "items": [
+                {
+                  "type": "flex",
+                  "displayFlex": true,
+                  "flex-direction": "row",
+                  "items": [
+                    {
+                      "key": "accessories[].playbacksensor",
+                      "flex": "1 1 100px"
+                    }
+                  ]
+                },
+                {
+                  "type": "flex",
+                  "displayFlex": true,
+                  "flex-direction": "row",
+                  "items": [
+                    {
+                      "key": "accessories[].playbacksensorexclude",
+                      "flex": "2 2 200px"
+                    },
+                    {
+                      "key": "accessories[].playbacksensordelay",
+                      "flex": "1 1 100px"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "title": "Control Center Remote and Power ON/OFF",
+              "expandable": true,
+              "expanded": false,
+              "description": "<p>Assign custom ADB keycodes for Control Center Remote.</p>",
+              "items": [
+                {
+                  "description": "<ul><li>You can put one or more keycodes by seperating them with space, eg: \"<code>KEYCODE_VOLUME_UP KEYCODE_VOLUME_DOWN</code>\".</li><li>Or, you can put ADB shell command, eg: \"<code>monkey -p com.termux 1</code>\".</li><li>Or, you can also put a shell script, add \"<code>shell</code>\" identifier on the beginning to let the plugins know it's a shell script, eg: \"<code>shell sh ./myscript.sh</code>\".</li><li>Or, you can also run an app by putting the app id, eg: \"<code>com.google.android.youtube.tv</code>\". Leave them empty to use default values.</li></ul>",
+                  "items": []
+                },
+                {
+                  "title": "Volume",
+                  "description": "Custom ADB keycodes or shell scripts for control center remote volume control",
+                  "items": [
+                    {
+                      "type": "flex",
+                      "displayFlex": true,
+                      "flex-direction": "row",
+                      "items": [
+                        {
+                          "key": "accessories[].volumeup",
+                          "flex": "1 1 100px"
+                        },
+                        {
+                          "key": "accessories[].volumedown",
+                          "flex": "1 1 100px"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "title": "D-Pad",
+                  "description": "Costum ADB keycode or shell script for control remote center control",
+                  "items": [
+                    {
+                      "type": "flex",
+                      "displayFlex": true,
+                      "flex-direction": "row",
+                      "items": [
+                        {
+                          "flex": "1 1 100px"
+                        },
+                        {
+                          "key": "accessories[].upbutton",
+                          "flex": "1 1 100px"
+                        },
+                        {
+                          "flex": "1 1 100px"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "flex",
+                      "displayFlex": true,
+                      "flex-direction": "row",
+                      "items": [
+                        {
+                          "key": "accessories[].leftbutton",
+                          "flex": "1 1 100px"
+                        },
+                        {
+                          "key": "accessories[].selectbutton",
+                          "flex": "1 1 100px"
+                        },
+                        {
+                          "key": "accessories[].rightbutton",
+                          "flex": "1 1 100px"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "flex",
+                      "displayFlex": true,
+                      "flex-direction": "row",
+                      "items": [
+                        {
+                          "flex": "1 1 100px"
+                        },
+                        {
+                          "key": "accessories[].downbutton",
+                          "flex": "1 1 100px"
+                        },
+                        {
+                          "flex": "1 1 100px"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "flex",
+                      "displayFlex": true,
+                      "flex-direction": "row",
+                      "items": [
+                        {
+                          "key": "accessories[].playpausebutton",
+                          "flex": "1 1 100px"
+                        },
+                        {
+                          "key": "accessories[].backbutton",
+                          "flex": "1 1 100px"
+                        },
+                        {
+                          "key": "accessories[].infobutton",
+                          "flex": "1 1 100px"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "title": "Power",
+                  "description": "Costum ADB keycode or shell script for power",
+                  "items": [
+                    {
+                      "type": "flex",
+                      "displayFlex": true,
+                      "flex-direction": "row",
+                      "items": [
+                        {
+                          "key": "accessories[].poweron",
+                          "flex": "1 1 100px"
+                        },
+                        {
+                          "key": "accessories[].poweroff",
+                          "flex": "1 1 100px"
+                        },
+                        {
+                          "key": "accessories[].poweronretry",
+                          "flex": "1 1 100px"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "title": "Settings",
+              "expandable": true,
+              "expanded": false,
+              "description": "Other additional settings.",
+              "items": [
+                {
+                  "type": "flex",
+                  "displayFlex": true,
+                  "flex-direction": "row",
+                  "items": [
+                    {
+                      "key": "accessories[].debug",
+                      "flex": "1 1 100px"
+                    },
+                    {
+                      "key": "accessories[].skipSpeaker",
+                      "flex": "1 1 100px"
+                    }
+                  ]
+                },
+                {
+                  "type": "flex",
+                  "displayFlex": true,
+                  "flex-direction": "row",
+                  "items": [
+                    {
+                      "key": "accessories[].hidenumber",
+                      "flex": "1 1 100px"
+                    },
+                    {
+                      "key": "accessories[].hidehome",
+                      "flex": "1 1 100px"
+                    }
+                  ]
+                },
+                {
+                  "type": "flex",
+                  "displayFlex": true,
+                  "flex-direction": "row",
+                  "items": [
+                    {
+                      "key": "accessories[].hideother",
+                      "flex": "1 1 100px"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "title": "Advance Settings",
+              "expandable": true,
+              "expanded": false,
+              "description": "More advance settings. Leave it blank if you don't know what is this.",
+              "items": [
+                {
+                  "type": "flex",
+                  "displayFlex": true,
+                  "flex-direction": "column",
+                  "items": [
+                    {
+                      "key": "accessories[].stateAdbCommand"
+                    },
+                    {
+                      "key": "accessories[].stateAdbOutputAwake"
+                    },
+                    {
+                      "key": "accessories[].launcherid"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }

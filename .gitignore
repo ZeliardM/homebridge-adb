@@ -112,6 +112,7 @@ persist/
 .uix-*
 config.json
 auth.json
+test/
 
 # Development
 target/
