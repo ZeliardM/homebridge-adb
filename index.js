@@ -1,5 +1,6 @@
 let wol = require('wake_on_lan');
 let adb = require('nodejs-adb-wrapper');
+let { exec } = require('child_process');
 let Service, Characteristic;
 
 const PLUGIN_NAME = 'homebridge-adb';
@@ -49,6 +50,41 @@ class ADBPlugin {
 		// Exec timeout
 		this.timeout = this.config.timeout || 2500;
 		if (this.timeout < 1000) this.timeout = 1000;
+		// Shell command timeout
+		this.shellTimeout = this.config.shelltimeout || 30000;
+		if (this.shellTimeout < 1000) this.shellTimeout = 1000;
+
+		// Connect device during plugin startup without forcing display wake
+		this.connectOnStartup = this.config.connectonstartup || false;
+		this.startupCommand = this.config.startupcommand || "";
+
+		// Keep ADB transport alive while device is sleeping
+		this.keepAdbAliveWhenSleeping = this.config.keepadbalivewhensleeping || false;
+		this.keepAliveCommand = this.config.keepalivecommand || this.config.startupcommand || "";
+		this.keepAliveInterval = this.config.keepaliveinterval || 30000;
+		if (this.keepAliveInterval < 10000) this.keepAliveInterval = 10000;
+
+		// Debounce noisy connect/disconnect logs
+		this.connectionDebounceCount = this.config.connectiondebouncecount || 2;
+		this.suppressSleepingDisconnectLogs = this.config.suppresssleepingdisconnectlogs !== false;
+
+		this.connectedState = false;
+		this.disconnectedCount = 0;
+		this.connectedCount = 0;
+		this.keepAliveInProgress = false;
+		this.keepAliveLoop = null;
+
+		// Delay after startup connect before model/state detection
+		this.startupSettleDelay = this.config.startupsettledelay ?? 500;
+		if (this.startupSettleDelay < 0) this.startupSettleDelay = 0;
+
+		// Prevent keepalive from running while power state is settling
+		this.powerSettleDelay = this.config.powersettledelay ?? 20000;
+		if (this.powerSettleDelay < 0) this.powerSettleDelay = 0;
+
+		this.powerSettlingUntil = 0;
+
+		this.fastPowerOff = this.config.fastpoweroff || false;
 
 		// Inputs
 		this.input = this.config.inputs || [];
@@ -63,7 +99,7 @@ class ADBPlugin {
 		this.category = this.config.category || "TELEVISION";
 		this.category = this.category.toUpperCase();
 		// Speaker
-		this.enableSpeaker = !this.config.skipSpeaker || YES;
+		this.enableSpeaker = this.config.skipSpeaker ? NO : YES;
 		// Playback Sensor
 		this.isPlaying = NO;
 		this.enablePlaybackSensor = this.config.playbacksensor || NO;
@@ -75,7 +111,7 @@ class ADBPlugin {
 		// Power
 		this.powerOnChange = NO;
 		this.wolLoop = EMPTY;
-		this.retryPowerOn = this.retrypoweron || 10;
+		this.retryPowerOn = this.config.poweronretry || 10;
 		// App
 		this.currentAppID = HOME_APP_ID;
 		// Custom launcher app id
@@ -152,114 +188,241 @@ class ADBPlugin {
 
 		this.displayInfo(`Initializing`);
 
-		// Get device information
-		this.createAccessories().then(() => {
-			// Get the accessory information
-			this.adb.update().catch(error => {
-				if (error) this.displayDebug(`Update error message:\n${error}`);
-			});
-
-			// Handle On Off
-			this.handleOnOff();
-
-			// Handle inputs
-			this.handleInputs();
-
-			// Handle volume
-			this.handleVolume();
-
-			// Show Control Center Remote if needed
-			this.handleRemoteControl();
-
-			// Loop events
-			let count = 0;
-			this.adb.on(`update`, (type, message, debug) => {
-				switch (type) {
-					case `firstrun`:
-						break;
-					// Connection events
-					case `connecting`:
-						this.displayDebug("Connecting...");
-						break;
-					case `timeout`:
-						this.displayDebug("Timeout...");
-						break;
-					case `status`:
-						if (count++ == 0) this.displayDebug(`Alive: ${Date()}`);
-						if (count >= 60) count = 0;
-						break;
-					case `connected`:
-						this.displayDebug("Connected");
-						break;
-					case `disconnected`:
-						this.displayDebug("Not connected");
-						break;
-					case `authorized`:
-						this.displayDebug("Authorized");
-						break;
-					case `unauthorized`:
-						this.displayInfo(`\n\n\t${this.red("WARNING: Device unauthorized")}.\n\tCheck your Android device for authorization popup.\n`);
-						break;
-
-					// App events
-					case `appChange`:
-						const currentAppId = this.adb.getCurrentAppId();
-
-						this.displayDebug(`App change to ${currentAppId}`);
-						this.parseInput(currentAppId);
-
-						this.switchInputs.currentId = currentAppId;
-						this.switchInputs.turnOn(`from app change event`);
-						break;
-					case `playback`:
-						if (this.enablePlaybackSensor == YES) {
-							if (this.isPlaying == this.adb.getPlaybackStatus()) return;
-
-							this.isPlaying = this.playbackSensorExclude.includes(this.currentAppID) ? NO : this.adb.getPlaybackStatus() ? YES : NO;
-							this.displayInfo(`Playback - ${this.isPlaying ? this.green(`On`) : this.red(`Off`)}`);
-							this.accessoryPlaybackSensorService.updateCharacteristic(Characteristic.MotionDetected, this.isPlaying);
-							if (debug) this.displayDebug("Playback debug:\n" + debug.trim());
-						}
-						break;
-
-					// Sleep/awake events
-					case `awake`:
-						this.accessoryService.updateCharacteristic(Characteristic.Active, Characteristic.Active.ACTIVE);
-						this.displayInfo(this.green(`Awake`));
-						break;
-					case `sleep`:
-						this.accessoryService.updateCharacteristic(Characteristic.Active, Characteristic.Active.INACTIVE);
-						this.displayInfo(this.red(`Sleep`));
-						break;
-
-					// Power events
-					case `powerOn`:
-						this.displayDebug(`Turning power on`);
-						break;
-					case `powerOff`:
-						this.displayDebug(`Turning power off`);
-						break;
-					case `debugPowerOn`:
-						this.displayDebug(`Turning power on: ${message.awake}, ${debug}`);
-						break;
-					case `debugPowerOff`:
-						this.displayDebug(`Turning power off: ${message.awake}, ${debug}`);
-						break;
-					case `powerOnStatus`:
-						this.displayDebug(`Turning power on: ${message}`);
-						break;
-					case `powerOffStatus`:
-						this.displayDebug(`Turning power off: ${message}`);
-						break;
-
-					default:
-						break;
-				}
-			});
+		this.initialize().catch(error => {
+			this.displayInfo(`Initialization failed`);
+			if (error) this.displayDebug(`Initialization error message:\n${error}`);
 		});
 	}
 
 
+
+	/**
+	 * Initialize accessory startup flow.
+	 * Optionally prepares ADB connectivity before initial model/state detection.
+	 */
+	async initialize() {
+		if (this.connectOnStartup) {
+			this.displayInfo(`Startup connect - Starting`);
+
+			const output = await this.runConfiguredStartupConnect(`Startup connect`);
+
+			if (output.result) {
+				this.displayInfo(`Startup connect - Success`);
+			} else {
+				this.displayInfo(`Startup connect - Failed`);
+				this.displayDebug(`Startup connect error message: ${output.message}`);
+			}
+
+			// Let the wrapper/network settle before model/state detection.
+			if (this.startupSettleDelay > 0) {
+				await new Promise(resolve => setTimeout(resolve, this.startupSettleDelay));
+			}
+		}
+
+		// Get the accessory information and publish external accessories.
+		await this.createAccessories();
+
+		// Register ADB update event handlers before starting the update loop.
+		this.registerUpdateEvents();
+
+		// Register HomeKit handlers.
+		this.handleOnOff();
+		this.handleInputs();
+		this.handleVolume();
+		this.handleRemoteControl();
+
+		// Start the ADB update loop.
+		this.adb.update().catch(error => {
+			if (error) this.displayDebug(`Update error message:\n${error}`);
+		});
+
+		// Optional sleeping keepalive loop.
+		this.startSleepingKeepAliveLoop();
+	}
+
+	/**
+	 * Register ADB update event handlers.
+	 */
+	registerUpdateEvents() {
+		let count = 0;
+
+		this.adb.on(`update`, (type, message, debug) => {
+			switch (type) {
+				case `firstrun`:
+					break;
+
+				// Connection events
+				case `connecting`:
+					this.displayDebug("Connecting...");
+					break;
+
+				case `timeout`:
+					this.displayDebug("Timeout...");
+					break;
+
+				case `status`:
+					if (count++ == 0) this.displayDebug(`Alive: ${Date()}`);
+					if (count >= 60) count = 0;
+					break;
+
+				case `connected`:
+					this.disconnectedCount = 0;
+					this.connectedCount++;
+
+					if (!this.connectedState && this.connectedCount >= this.connectionDebounceCount) {
+						this.connectedState = true;
+						this.displayDebug("Connected");
+					}
+					break;
+
+				case `disconnected`:
+					this.connectedCount = 0;
+					this.disconnectedCount++;
+
+					/*
+					* When the TV is logically sleeping, ADB transport flapping is expected.
+					* Do not spam logs unless suppresssleepingdisconnectlogs is disabled.
+					*/
+					if (!this.adb.getPowerStatus() && this.suppressSleepingDisconnectLogs) {
+						if (this.connectedState && this.disconnectedCount >= this.connectionDebounceCount) {
+							this.connectedState = false;
+							this.displayDebug("ADB transport sleeping/disconnected");
+						}
+						break;
+					}
+
+					if (this.connectedState && this.disconnectedCount >= this.connectionDebounceCount) {
+						this.connectedState = false;
+						this.displayDebug("Not connected");
+					}
+
+					break;
+
+				case `authorized`:
+					this.displayDebug("Authorized");
+					break;
+
+				case `unauthorized`:
+					this.displayInfo(`\n\n\t${this.red("WARNING: Device unauthorized")}.\n\tCheck your Android device for authorization popup.\n`);
+					break;
+
+				// App events
+				case `appChange`: {
+					const currentAppId = this.adb.getCurrentAppId();
+
+					this.displayDebug(`App change to ${currentAppId}`);
+					this.parseInput(currentAppId);
+
+					this.switchInputs.currentId = currentAppId;
+					this.switchInputs.turnOn(`from app change event`);
+					break;
+				}
+
+				case `playback`:
+					if (this.enablePlaybackSensor == YES) {
+						if (this.isPlaying == this.adb.getPlaybackStatus()) return;
+
+						this.isPlaying = this.playbackSensorExclude.includes(this.currentAppID) ? NO : this.adb.getPlaybackStatus() ? YES : NO;
+						this.displayInfo(`Playback - ${this.isPlaying ? this.green(`On`) : this.red(`Off`)}`);
+						this.accessoryPlaybackSensorService.updateCharacteristic(Characteristic.MotionDetected, this.isPlaying);
+						if (debug) this.displayDebug("Playback debug:\n" + debug.trim());
+					}
+					break;
+
+				// Sleep/awake events
+				case `awake`:
+					this.accessoryService.updateCharacteristic(Characteristic.Active, Characteristic.Active.ACTIVE);
+					this.displayInfo(this.green(`Awake`));
+					break;
+
+				case `sleep`:
+					this.accessoryService.updateCharacteristic(Characteristic.Active, Characteristic.Active.INACTIVE);
+					this.displayInfo(this.red(`Sleep`));
+					break;
+
+				// Power events
+				case `powerOn`:
+					this.displayDebug(`Turning power on`);
+					break;
+
+				case `powerOff`:
+					this.displayDebug(`Turning power off`);
+					break;
+
+				case `debugPowerOn`:
+					this.displayDebug(`Turning power on: ${message.awake}, ${debug}`);
+					break;
+
+				case `debugPowerOff`:
+					this.displayDebug(`Turning power off: ${message.awake}, ${debug}`);
+					break;
+
+				case `powerOnStatus`:
+					this.displayDebug(`Turning power on: ${message}`);
+					break;
+
+				case `powerOffStatus`:
+					this.displayDebug(`Turning power off: ${message}`);
+					break;
+
+				default:
+					break;
+			}
+		});
+	}
+
+	/**
+	 * Keep ADB transport available while the TV is sleeping.
+	 * This should use a connect-only command that does NOT send KEYCODE_WAKEUP/HOME.
+	 */
+	startSleepingKeepAliveLoop() {
+		if (!this.keepAdbAliveWhenSleeping) return;
+		if (!this.keepAliveCommand) {
+			this.displayDebug(`Sleeping keepalive disabled: no keepalivecommand configured`);
+			return;
+		}
+
+		this.displayDebug(`Sleeping keepalive enabled. Interval: ${this.keepAliveInterval}ms`);
+
+		this.keepAliveLoop = setInterval(async () => {
+			if (this.keepAliveInProgress) return;
+			if (this.powerOnChange) return;
+			if (this.isPowerSettling()) return;
+
+			// Only run this while the TV is logically sleeping.
+			if (this.adb.getPowerStatus()) return;
+
+			this.keepAliveInProgress = true;
+
+			try {
+				this.displayDebug(`Sleeping keepalive - Starting`);
+
+				let output;
+
+				if (this.isShellCommand(this.keepAliveCommand)) {
+					output = await this.runOsShell(this.keepAliveCommand, `Sleeping keepalive`);
+				} else {
+					output = await this.adb.connect();
+				}
+
+				if (output && output.result) {
+					this.displayDebug(`Sleeping keepalive - Success`);
+
+					try {
+						await this.adb.connect();
+					} catch (error) {
+						this.displayDebug(`Sleeping keepalive - ADB reconnect failed: ${error}`);
+					}
+				} else {
+					this.displayDebug(`Sleeping keepalive - Failed: ${output ? output.message : 'No output'}`);
+				}
+			} catch (error) {
+				this.displayDebug(`Sleeping keepalive error: ${error}`);
+			} finally {
+				this.keepAliveInProgress = false;
+			}
+		}, this.keepAliveInterval);
+	}
 
 	/**
 	 * Get accessory information to be used in Home app as identifier
@@ -438,75 +601,253 @@ class ADBPlugin {
 
 
 	/**
+	 * Returns true when a configured command is an OS shell command.
+	 */
+	isShellCommand(command) {
+		if (!command || typeof command !== 'string') return false;
+		return command.trim().toLowerCase().startsWith('shell ');
+	}
+
+	/**
+	 * Removes the "shell " prefix used by the plugin config.
+	 */
+	stripShellPrefix(command) {
+		return command.trim().replace(/^shell\s+/i, '');
+	}
+
+	/**
+	 * Run an OS shell command directly from the plugin.
+	 * This bypasses the ADB wrapper so shell power-on scripts can run even while ADB is disconnected.
+	 */
+	runOsShell(command, label = 'Shell') {
+		const shellCommand = this.stripShellPrefix(command);
+
+		this.displayDebug(`${label} - Running shell command: ${shellCommand}`);
+
+		return new Promise(resolve => {
+			exec(shellCommand, { timeout: this.shellTimeout }, (error, stdout, stderr) => {
+				const message = (stdout || stderr || '').trim();
+
+				if (error) {
+					resolve({
+						result: false,
+						message: message || error.message || `${label} failed`
+					});
+					return;
+				}
+
+				resolve({
+					result: true,
+					message: message || `${label} completed`
+				});
+			});
+		});
+	}
+
+	/**
+	 * Run the configured power-on command.
+	 * Shell commands are allowed to run even if ADB is currently disconnected.
+	 */
+	async runConfiguredPowerOn(reason = 'Power On') {
+		const powerOnCommand = this.config.poweron;
+
+		if (this.isShellCommand(powerOnCommand)) {
+			const output = await this.runOsShell(powerOnCommand, reason);
+
+			if (!output.result) return output;
+
+			// After the shell wake script runs, try to bring the wrapper's ADB state up to date.
+			try {
+				await this.adb.connect();
+			} catch (error) {
+				this.displayDebug(`${reason} - ADB reconnect after shell failed: ${error}`);
+			}
+
+			return {
+				result: true,
+				message: output.message || `${reason} succeeded`
+			};
+		}
+
+		return await this.adb.powerOn();
+	}
+
+	/**
+	 * Run the configured power-off command.
+	 * Shell commands can be used for power-off too, but normal keycodes still use the ADB wrapper.
+	 */
+	async runConfiguredPowerOff(reason = 'Power Off') {
+		const powerOffCommand = this.config.poweroff;
+
+		if (this.isShellCommand(powerOffCommand)) {
+			return await this.runOsShell(powerOffCommand, reason);
+		}
+
+		/*
+		* Fast power-off is intended for one-way sleep commands like KEYCODE_SLEEP.
+		* Do not use this with KEYCODE_POWER unless you like haunted toggle behavior.
+		*/
+		if (this.fastPowerOff && powerOffCommand && powerOffCommand.trim().toUpperCase() === 'KEYCODE_SLEEP') {
+			const output = await this.adb.sendKeycode(powerOffCommand);
+
+			if (!output.result) return output;
+
+			return {
+				result: true,
+				message: `${reason} sent ${powerOffCommand}`
+			};
+		}
+
+		return await this.adb.powerOff();
+	}
+
+	/**
+	 * Run the configured startup command.
+	 * This should prepare the ADB transport without forcing display wake.
+	 */
+	async runConfiguredStartupConnect(reason = 'Startup connect') {
+		const startupCommand = this.startupCommand;
+
+		if (this.isShellCommand(startupCommand)) {
+			const output = await this.runOsShell(startupCommand, reason);
+
+			if (!output.result) return output;
+
+			try {
+				await this.adb.connect();
+			} catch (error) {
+				this.displayDebug(`${reason} - ADB reconnect after startup command failed: ${error}`);
+			}
+
+			return {
+				result: true,
+				message: output.message || `${reason} succeeded`
+			};
+		}
+
+		// Fallback: just attempt normal ADB connect.
+		try {
+			const output = await this.adb.connect();
+			return {
+				result: true,
+				message: output.message || `${reason} connected`
+			};
+		} catch (error) {
+			return {
+				result: false,
+				message: error
+			};
+		}
+	}
+
+	isPowerSettling() {
+		return Date.now() < this.powerSettlingUntil;
+	}
+
+	/**
 	 * Handle On/Off
 	 */
 	handleOnOff() {
 		this.accessoryService.getCharacteristic(Characteristic.Active)
-			.onSet(state => {
+			.onSet(async state => {
 				if (state == this.adb.getPowerStatus() || this.powerOnChange == YES) return;
 
 				this.powerOnChange = YES;
+				this.powerSettlingUntil = Date.now() + this.powerSettleDelay;
 
 				if (state) {
 					// Power On
 					this.displayDebug("Trying to turn ON accessory. This will take awhile, please wait...");
 
-					if (this.mac) {
-						this.displayDebug("Wake On LAN - Sending magic");
-						wol.wake(`${this.mac}`, wol.WakeOptions, error => {
-							this.adb.state().then(({ result, message }) => {
-								if (error) throw error;
-								if (!result) throw message;
+					try {
+						let output;
 
-								this.powerOnChange = NO;
-								this.displayDebug("Wake On LAN - Success");
+						/*
+						* Shell power-on gets first priority.
+						* This allows scripts like:
+						* shell /bin/bash /var/lib/homebridge/adb/wake-tcl-tv.sh
+						* to run even when ADB is disconnected.
+						*/
+						if (this.isShellCommand(this.config.poweron)) {
+							output = await this.runConfiguredPowerOn("Power On");
+						} else if (this.mac) {
+							this.displayDebug("Wake On LAN - Sending magic");
 
-								this.accessoryService.updateCharacteristic(Characteristic.Active, Characteristic.Active.ACTIVE);
-							}).catch(error => {
-								this.powerOnChange = NO;
-								this.displayInfo("Wake On LAN - Failed");
+							output = await new Promise(resolve => {
+								wol.wake(`${this.mac}`, wol.WakeOptions, error => {
+									if (error) {
+										resolve({
+											result: false,
+											message: error
+										});
+										return;
+									}
 
-								this.accessoryService.updateCharacteristic(Characteristic.Active, Characteristic.Active.INACTIVE);
-
-								if (error) this.displayDebug(`WOL error message:\n${error}`);
+									this.adb.state().then(({ result, message }) => {
+										resolve({ result, message });
+									}).catch(error => {
+										resolve({
+											result: false,
+											message: error
+										});
+									});
+								});
 							});
-						});
-					} else {
-						this.adb.powerOn().then(({ result, message }) => {
-							if (!result) throw message;
+						} else {
+							output = await this.adb.powerOn();
+						}
 
-							this.powerOnChange = NO;
+						if (!output.result) throw output.message;
+
+						this.powerSettlingUntil = Date.now() + this.powerSettleDelay;
+						this.powerOnChange = NO;
+
+						if (this.isShellCommand(this.config.poweron)) {
+							this.displayDebug("Power On - Shell wake success");
+						} else if (this.mac) {
+							this.displayDebug("Wake On LAN - Success");
+						} else {
 							this.displayDebug("Power On - Success");
+						}
 
-							this.accessoryService.updateCharacteristic(Characteristic.Active, Characteristic.Active.ACTIVE);
-						}).catch(error => {
-							this.powerOnChange = NO;
+						this.accessoryService.updateCharacteristic(Characteristic.Active, Characteristic.Active.ACTIVE);
+					} catch (error) {
+						this.powerSettlingUntil = Date.now() + this.powerSettleDelay;
+						this.powerOnChange = NO;
+
+						if (this.mac && !this.isShellCommand(this.config.poweron)) {
+							this.displayInfo("Wake On LAN - Failed");
+							if (error) this.displayDebug(`WOL error message:\n${error}`);
+						} else {
 							this.displayInfo("Power On - Failed");
-
-							this.accessoryService.updateCharacteristic(Characteristic.Active, Characteristic.Active.INACTIVE);
-
 							if (error) this.displayDebug(`Power on error message: ${error}`);
-						});
+						}
+
+						this.accessoryService.updateCharacteristic(Characteristic.Active, Characteristic.Active.INACTIVE);
 					}
 				} else {
 					// Power Off
 					this.displayDebug("Trying to turn OFF accessory");
 
-					this.adb.powerOff().then(({ result, message }) => {
-						if (!result) throw message;
+					try {
+						const output = await this.runConfiguredPowerOff("Power Off");
 
+						if (!output.result) throw output.message;
+
+						this.powerSettlingUntil = Date.now() + this.powerSettleDelay;
 						this.powerOnChange = NO;
 						this.displayDebug("Power Off - Success");
 
 						this.accessoryService.updateCharacteristic(Characteristic.Active, Characteristic.Active.INACTIVE);
-					}).catch(error => {
+					} catch (error) {
+						this.powerSettlingUntil = Date.now() + this.powerSettleDelay;
 						this.powerOnChange = NO;
 						this.displayInfo("Power Off - Failed");
 
 						this.accessoryService.updateCharacteristic(Characteristic.Active, Characteristic.Active.ACTIVE);
 
 						if (error) this.displayDebug(`Power off error message: ${error}`);
-					});
+					}
 				}
 			}).onGet(() => this.adb.getPowerStatus() ? Characteristic.Active.ACTIVE : Characteristic.Active.INACTIVE);
 	}

@@ -244,7 +244,83 @@
               "type": "string",
               "title": "Default Launcher App Id",
               "placeholder": "eg: com.spocky.projengmenu"
-            }
+            },
+            "shelltimeout": {
+              "type": "number",
+              "title": "Shell Command Timeout",
+              "description": "Timeout in milliseconds for local shell scripts used by power, startup, keepalive, and input commands.",
+              "minimum": 1000,
+              "maximum": 120000,
+              "default": 30000
+            },
+            "connectonstartup": {
+              "type": "boolean",
+              "title": "Connect On Startup",
+              "description": "Run the configured startup command during plugin startup before attempting the initial ADB connection. This should not force the TV display on.",
+              "default": false
+            },
+            "startupcommand": {
+              "type": "string",
+              "title": "Startup Command",
+              "description": "Command used for startup ADB preparation. Use a connect-only script here, not the normal power-on script.",
+              "placeholder": "shell /bin/bash /var/lib/homebridge/adb/connect-tcl-tv.sh"
+            },
+            "keepadbalivewhensleeping": {
+              "type": "boolean",
+              "title": "Keep ADB Alive While Sleeping",
+              "description": "Periodically runs the keepalive command while the TV is sleeping so ADB remains reachable without turning the TV on.",
+              "default": false
+            },
+            "keepalivecommand": {
+              "type": "string",
+              "title": "Keepalive Command",
+              "description": "Command used to keep sleeping ADB reachable. Use a connect-only script that does not send wake/home keycodes.",
+              "placeholder": "shell /bin/bash /var/lib/homebridge/adb/connect-tcl-tv.sh"
+            },
+            "keepaliveinterval": {
+              "type": "number",
+              "title": "Keepalive Interval",
+              "description": "How often to run the sleeping keepalive command.",
+              "minimum": 10000,
+              "maximum": 300000,
+              "default": 30000
+            },
+            "connectiondebouncecount": {
+              "type": "number",
+              "title": "Connection Debounce Count",
+              "description": "Number of repeated connected/disconnected events required before logging a connection state change.",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 2
+            },
+            "suppresssleepingdisconnectlogs": {
+              "type": "boolean",
+              "title": "Suppress Sleeping Disconnect Logs",
+              "description": "Suppress repeated ADB disconnect logs while the TV is logically sleeping.",
+              "default": true
+            },
+            "startupsettledelay": {
+            "type": "number",
+            "title": "Startup Settle Delay",
+            "description": "Delay in milliseconds after startup connect before model/state detection.",
+            "minimum": 0,
+            "maximum": 10000,
+            "default": 500
+          },
+          "powersettledelay": {
+            "type": "number",
+            "title": "Power Settle Delay",
+            "description": "Delay in milliseconds after power on/off during which sleeping keepalive is paused.",
+            "minimum": 0,
+            "maximum": 60000,
+            "default": 20000
+          },
+          "fastpoweroff": {
+            "type": "boolean",
+            "title": "Fast Power Off",
+            "description": "For one-way sleep commands like KEYCODE_SLEEP, send the command once instead of waiting through the wrapper power-off loop.",
+            "default": false
+          }
           }
         }
       }
@@ -304,6 +380,21 @@
                 },
                 {
                   "key": "accessories[].interval",
+                  "flex": "1 1 100px"
+                }
+              ]
+            },
+            {
+              "type": "flex",
+              "displayFlex": true,
+              "flex-direction": "row",
+              "items": [
+                {
+                  "key": "accessories[].shelltimeout",
+                  "flex": "1 1 100px"
+                },
+                {
+                  "key": "accessories[].connectonstartup",
                   "flex": "1 1 100px"
                 }
               ]
@@ -369,6 +460,64 @@
                   "items": [
                     {
                       "key": "accessories[].mac",
+                      "flex": "1 1 100px"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "title": "Startup and Sleeping ADB",
+              "expandable": true,
+              "expanded": false,
+              "description": "Advanced startup and sleeping transport options. Use connect-only scripts here, not scripts that send wake/home keycodes.",
+              "items": [
+                {
+                  "type": "flex",
+                  "displayFlex": true,
+                  "flex-direction": "column",
+                  "items": [
+                    {
+                      "key": "accessories[].startupcommand"
+                    },
+                    {
+                      "key": "accessories[].keepadbalivewhensleeping"
+                    },
+                    {
+                      "key": "accessories[].keepalivecommand"
+                    }
+                  ]
+                },
+                {
+                  "type": "flex",
+                  "displayFlex": true,
+                  "flex-direction": "row",
+                  "items": [
+                    {
+                      "key": "accessories[].startupsettledelay",
+                      "flex": "1 1 100px"
+                    },
+                    {
+                      "key": "accessories[].keepaliveinterval",
+                      "flex": "1 1 100px"
+                    },
+                    {
+                      "key": "accessories[].powersettledelay",
+                      "flex": "1 1 100px"
+                    }
+                  ]
+                },
+                {
+                  "type": "flex",
+                  "displayFlex": true,
+                  "flex-direction": "row",
+                  "items": [
+                    {
+                      "key": "accessories[].connectiondebouncecount",
+                      "flex": "1 1 100px"
+                    },
+                    {
+                      "key": "accessories[].suppresssleepingdisconnectlogs",
                       "flex": "1 1 100px"
                     }
                   ]
@@ -520,7 +669,7 @@
                 },
                 {
                   "title": "Power",
-                  "description": "Costum <a href='https://developer.android.com/reference/android/view/KeyEvent' target='blank'>ADB keycodes</a> or app id or shell script for power.",
+                  "description": "Custom <a href='https://developer.android.com/reference/android/view/KeyEvent' target='blank'>ADB keycodes</a>, app id, or shell script for power.",
                   "items": [
                     {
                       "type": "flex",
@@ -537,6 +686,17 @@
                         },
                         {
                           "key": "accessories[].poweronretry",
+                          "flex": "1 1 100px"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "flex",
+                      "displayFlex": true,
+                      "flex-direction": "row",
+                      "items": [
+                        {
+                          "key": "accessories[].fastpoweroff",
                           "flex": "1 1 100px"
                         }
                       ]
