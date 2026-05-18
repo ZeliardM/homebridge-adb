@@ -67,6 +67,7 @@ class ADBPlugin {
 		// Debounce noisy connect/disconnect logs
 		this.connectionDebounceCount = this.config.connectiondebouncecount || 2;
 		this.suppressSleepingDisconnectLogs = this.config.suppresssleepingdisconnectlogs !== false;
+		this.markAsleepWhenDisconnected = this.config.markasleepwhendisconnected || false;
 
 		this.connectedState = false;
 		this.disconnectedCount = 0;
@@ -117,6 +118,7 @@ class ADBPlugin {
 		this.stateAdbOutputAwake = this.config.stateAdbOutputAwake;
 		// Power
 		this.powerOnChange = NO;
+		this.powerState = NO;
 		this.wolLoop = EMPTY;
 		this.retryPowerOn = this.config.poweronretry || 10;
 		// App
@@ -239,7 +241,7 @@ class ADBPlugin {
 		this.handleRemoteControl();
 
 		// Start the ADB update loop.
-		this.adb.update().catch(error => {
+		this.adb.update(this.handleUpdatePoll.bind(this)).catch(error => {
 			if (error) this.displayDebug(`Update error message:\n${error}`);
 		});
 
@@ -290,7 +292,7 @@ class ADBPlugin {
 					* When the TV is logically sleeping, ADB transport flapping is expected.
 					* Do not spam logs unless suppresssleepingdisconnectlogs is disabled.
 					*/
-					if (!this.adb.getPowerStatus() && this.suppressSleepingDisconnectLogs) {
+					if (!this.powerState && this.suppressSleepingDisconnectLogs) {
 						if (this.connectedState && this.disconnectedCount >= this.connectionDebounceCount) {
 							this.connectedState = false;
 							this.displayDebug("ADB transport sleeping/disconnected");
@@ -301,6 +303,10 @@ class ADBPlugin {
 					if (this.connectedState && this.disconnectedCount >= this.connectionDebounceCount) {
 						this.connectedState = false;
 						this.displayDebug("Not connected");
+					}
+
+					if (this.markAsleepWhenDisconnected && this.powerState && this.disconnectedCount >= this.connectionDebounceCount) {
+						this.syncPowerState(NO, `ADB disconnected`);
 					}
 
 					break;
@@ -338,13 +344,11 @@ class ADBPlugin {
 
 				// Sleep/awake events
 				case `awake`:
-					this.accessoryService.updateCharacteristic(Characteristic.Active, Characteristic.Active.ACTIVE);
-					this.displayInfo(this.green(`Awake`));
+					this.syncPowerState(YES, `ADB awake event`);
 					break;
 
 				case `sleep`:
-					this.accessoryService.updateCharacteristic(Characteristic.Active, Characteristic.Active.INACTIVE);
-					this.displayInfo(this.red(`Sleep`));
+					this.syncPowerState(NO, `ADB sleep event`);
 					break;
 
 				// Power events
@@ -379,6 +383,61 @@ class ADBPlugin {
 	}
 
 	/**
+	 * Keep HomeKit's Active state aligned with the latest known TV state.
+	 */
+	syncPowerState(isAwake, source = `unknown`) {
+		const nextPowerState = isAwake ? YES : NO;
+		const changed = this.powerState !== nextPowerState;
+
+		this.powerState = nextPowerState;
+
+		if (this.accessoryService) {
+			this.accessoryService.updateCharacteristic(
+				Characteristic.Active,
+				nextPowerState ? Characteristic.Active.ACTIVE : Characteristic.Active.INACTIVE
+			);
+		}
+
+		if (changed) {
+			this.displayInfo(nextPowerState ? this.green(`Awake`) : this.red(`Sleep`));
+		} else if (!source.includes(`state poll`)) {
+			this.displayDebug(`Power state confirmed ${nextPowerState ? `awake` : `sleep`} from ${source}`);
+		}
+	}
+
+	/**
+	 * The ADB wrapper's update callback returns the result of connect/state/app/playback polling.
+	 * Use it as a second source of truth so manual remote power changes update HomeKit even
+	 * when the wrapper does not emit a fresh awake/sleep event.
+	 */
+	handleUpdatePoll(output) {
+		if (!Array.isArray(output)) return;
+
+		const connectResult = output[0];
+		const stateResult = output[1];
+
+		if (stateResult && stateResult.message === `Device is awake`) {
+			this.syncPowerState(YES, `state poll`);
+			return;
+		}
+
+		if (stateResult && stateResult.message === `Device is sleep`) {
+			this.syncPowerState(NO, `state poll`);
+			return;
+		}
+
+		if (
+			this.markAsleepWhenDisconnected &&
+			this.powerState &&
+			connectResult &&
+			connectResult.result === false &&
+			this.disconnectedCount >= this.connectionDebounceCount
+		) {
+			this.syncPowerState(NO, `state poll disconnected`);
+		}
+	}
+
+	/**
 	 * Keep ADB transport available while the TV is sleeping.
 	 * This should use a connect-only command that does NOT send KEYCODE_WAKEUP/HOME.
 	 */
@@ -397,7 +456,7 @@ class ADBPlugin {
 			if (this.isPowerSettling()) return;
 
 			// Only run this while the TV is logically sleeping.
-			if (this.adb.getPowerStatus()) return;
+			if (this.powerState) return;
 
 			this.keepAliveInProgress = true;
 
@@ -755,12 +814,13 @@ class ADBPlugin {
 	handleOnOff() {
 		this.accessoryService.getCharacteristic(Characteristic.Active)
 			.onSet(async state => {
-				if (state == this.adb.getPowerStatus() || this.powerOnChange == YES) return;
+				const requestedPowerState = state == Characteristic.Active.ACTIVE;
+				if (requestedPowerState == this.powerState || this.powerOnChange == YES) return;
 
 				this.powerOnChange = YES;
 				this.powerSettlingUntil = Date.now() + this.powerSettleDelay;
 
-				if (state) {
+				if (requestedPowerState) {
 					// Power On
 					this.displayDebug("Trying to turn ON accessory. This will take awhile, please wait...");
 
@@ -815,7 +875,7 @@ class ADBPlugin {
 							this.displayDebug("Power On - Success");
 						}
 
-						this.accessoryService.updateCharacteristic(Characteristic.Active, Characteristic.Active.ACTIVE);
+						this.syncPowerState(YES, `Power On`);
 					} catch (error) {
 						this.powerSettlingUntil = Date.now() + this.powerSettleDelay;
 						this.powerOnChange = NO;
@@ -828,7 +888,7 @@ class ADBPlugin {
 							if (error) this.displayDebug(`Power on error message: ${error}`);
 						}
 
-						this.accessoryService.updateCharacteristic(Characteristic.Active, Characteristic.Active.INACTIVE);
+						this.syncPowerState(NO, `Power On failed`);
 					}
 				} else {
 					// Power Off
@@ -843,18 +903,18 @@ class ADBPlugin {
 						this.powerOnChange = NO;
 						this.displayDebug("Power Off - Success");
 
-						this.accessoryService.updateCharacteristic(Characteristic.Active, Characteristic.Active.INACTIVE);
+						this.syncPowerState(NO, `Power Off`);
 					} catch (error) {
 						this.powerSettlingUntil = Date.now() + this.powerSettleDelay;
 						this.powerOnChange = NO;
 						this.displayInfo("Power Off - Failed");
 
-						this.accessoryService.updateCharacteristic(Characteristic.Active, Characteristic.Active.ACTIVE);
+						this.syncPowerState(YES, `Power Off failed`);
 
 						if (error) this.displayDebug(`Power off error message: ${error}`);
 					}
 				}
-			}).onGet(() => this.adb.getPowerStatus() ? Characteristic.Active.ACTIVE : Characteristic.Active.INACTIVE);
+			}).onGet(() => this.powerState ? Characteristic.Active.ACTIVE : Characteristic.Active.INACTIVE);
 	}
 
 	/**
@@ -952,7 +1012,7 @@ class ADBPlugin {
 					if (error) this.displayDebug(`Launch error message:\n${error}`);
 				});
 			})
-			.onGet(() => this.adb.getPowerStatus() ? this.switchInputs.currentId == switchInput.id ? true : false : false);
+			.onGet(() => this.powerState ? this.switchInputs.currentId == switchInput.id ? true : false : false);
 	}
 
 	/**

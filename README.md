@@ -173,6 +173,7 @@ Here an example of configuration that you can use.
 	* *launcherid* (optional): Some launcher like [projectivy](https://play.google.com/store/apps/details?id=com.spocky.projengmenu) (which is a nice launcher if you tired looking at forced ads from Google) can't be detected as the default launcher for the "Home" input. Write the app id so the plugins can recognize the launcher as the "Home" input.
 	* *stateAdbCommand* (optional): Some android device, seem to have different `dumpsys power` value to determine its state. Define your own adb shell command based on your device. eg: `dumpsys power | grep mWakefulness=`
 	* *stateAdbOutputAwake* (optional): Related to *stateAdbCommand*, define the output value that the command will output, remember it's case sensitive. eg: `Awake`
+	* *markasleepwhendisconnected* (optional): if set to *true*, repeated ADB disconnects while the TV is believed awake will mark the TV inactive in HomeKit. This is useful for TVs that drop ADB immediately when turned off from the physical remote.
 
 If you're using Homebridge Config UI X, you can configure your device there, but there's a small hiccup with Inputs. It only display one input, but if you press add, it will display the rest of the inputs.
 

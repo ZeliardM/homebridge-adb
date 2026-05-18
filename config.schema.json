@@ -307,6 +307,12 @@
               "description": "Suppress repeated ADB disconnect logs while the TV is logically sleeping.",
               "default": true
             },
+            "markasleepwhendisconnected": {
+              "type": "boolean",
+              "title": "Mark Asleep When ADB Disconnects",
+              "description": "When repeated ADB disconnects happen while the TV is believed awake, mark the TV inactive in HomeKit. Enable this for TVs that drop ADB immediately when turned off with the physical remote.",
+              "default": false
+            },
             "startupsettledelay": {
             "type": "number",
             "title": "Startup Settle Delay",
@@ -526,6 +532,10 @@
                     },
                     {
                       "key": "accessories[].suppresssleepingdisconnectlogs",
+                      "flex": "1 1 100px"
+                    },
+                    {
+                      "key": "accessories[].markasleepwhendisconnected",
                       "flex": "1 1 100px"
                     }
                   ]
