@@ -95,6 +95,13 @@ class ADBPlugin {
 		this.hideOther = this.config.hideother || false;
 		if (!this.hideHome) this.input.unshift({ "name": "Home", "id": HOME_APP_ID });
 		if (!this.hideOther) this.input.push({ "name": "Other", "id": OTHER_APP_ID });
+		this.hiddenInputSlots = Number(this.config.hiddeninputslots ?? 0);
+		if (!Number.isFinite(this.hiddenInputSlots)) this.hiddenInputSlots = 0;
+		this.hiddenInputSlots = Math.floor(this.hiddenInputSlots);
+		if (this.hiddenInputSlots < 0) this.hiddenInputSlots = 0;
+		const maxHiddenInputSlots = Math.max(0, 50 - this.input.length);
+		if (this.hiddenInputSlots > maxHiddenInputSlots) this.hiddenInputSlots = maxHiddenInputSlots;
+		this.inputSourceCount = Math.min(50, this.input.length + this.hiddenInputSlots);
 		// Category
 		this.category = this.config.category || "TELEVISION";
 		this.category = this.category.toUpperCase();
@@ -461,16 +468,14 @@ class ADBPlugin {
 	 * These are the inputs the user can select from.
 	 * When a user selected an input the corresponding Identifier Characteristic
 	 * is sent to the Accessory Service ActiveIdentifier Characteristic handler.
-	 * This plugins will create 50 inputs (- current inputs) unconfigured
-	 * and hidden input for future modification. Home app seems have problem
-	 * to add new input after initial add of the accessory. The newly
-	 * created inputs will shown up as related accesorries instead of
-	 * input accessories
+	 * Optional hidden placeholder inputs can be reserved for future changes.
+	 * HomeKit may require the TV accessory to be removed and re-added when
+	 * new input services are added later.
 	 */
 	createInputs() {
 		if (this.input.length <= 0) return;
 
-		for (let i = 0; i < 50; i++) {
+		for (let i = 0; i < this.inputSourceCount; i++) {
 			let input = this.input[i];
 			let type = Characteristic.InputSourceType.APPLICATION;
 			let configured = Characteristic.IsConfigured.CONFIGURED;

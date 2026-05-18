@@ -124,6 +124,14 @@
               "type": "boolean",
               "title": "Hide 'Inputs' number in Home App"
             },
+            "hiddeninputslots": {
+              "type": "number",
+              "title": "Reserved Hidden Input Slots",
+              "description": "Optional extra hidden input placeholders to pre-create for future input changes. Leave at 0 to show only configured inputs.",
+              "minimum": 0,
+              "maximum": 50,
+              "default": 0
+            },
             "hidehome": {
               "type": "boolean",
               "title": "Hide 'Home' Input in Home App"
@@ -748,6 +756,10 @@
                   "items": [
                     {
                       "key": "accessories[].hideother",
+                      "flex": "1 1 100px"
+                    },
+                    {
+                      "key": "accessories[].hiddeninputslots",
                       "flex": "1 1 100px"
                     }
                   ]

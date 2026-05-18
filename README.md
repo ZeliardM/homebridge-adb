@@ -165,6 +165,7 @@ Here an example of configuration that you can use.
 		* You can also put a shell script. Put `shell` identifier to let the plugins know it's a shell script, eg: `volumeup: "shell sh ./myscript.sh"`.
 		* You can also put app id to run app, because why not?, eg: `infobutton: "com.google.android.youtube.tv"`.
 	* *hidenumber* (optional): if set to *true*, plugin will hide number inputs in Home App.
+	* *hiddeninputslots* (optional): number of extra hidden input placeholders to pre-create for future input changes. Defaults to `0`, which shows only configured inputs. If you increase this later, HomeKit may require removing and re-adding the TV accessory.
 	* *hidehome* (optional): if set to *true*, plugin will hide "Home" input in Home App.
 	* *hideother* (optional): if set to *true*, plugin will hide "Other" input in Home App.
 	* *debug* (optional): if set to *true*, plugin will output more debug info in homebridge log.
