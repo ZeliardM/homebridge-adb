@@ -39,5 +39,8 @@
   "devDependencies": {
     "homebridge": "^2.0.2",
     "nodemon": "^3.1.14"
+  },
+  "overrides": {
+    "node-persist": "^4.0.4"
   }
 }
